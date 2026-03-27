@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"C:\\\\Users\\\\adrip\\\\Desktop\\\\Projet Mouton\\\\backend\\\\venv\\\\Scripts\\\\python.exe\" -c \":*)",
+      "Bash(curl -s -X PUT http://127.0.0.1:8003/animaux/3 -H \"Content-Type: application/json\" -d \"{\"\"boucle\"\":\"\"CH-5678\"\",\"\"genotype\"\":\"\"ARR/ARR\"\"}\")",
+      "Bash(npm show:*)",
+      "Bash(npx react-native:*)",
+      "Bash(npx @react-native-community/cli run-windows)",
+      "Bash(netstat -ano)",
+      "Bash(xargs -I{} taskkill /PID {} /F)",
+      "Bash(taskkill /F /IM uvicorn.exe)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(cmd.exe /c \"taskkill /PID 22428 /F\")",
+      "Bash(netstat -aon)",
+      "Bash(cmd.exe /c \"wmic process where processid=22428 get name,commandline 2>&1\")"
+    ]
+  }
+}

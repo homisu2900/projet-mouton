@@ -1,0 +1,15 @@
+# Python - environnement virtuel et fichiers compilés
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+
+# Base de données locale (sera vide sur Render de toute façon)
+backend/troupeau.db
+
+# Node.js - dépendances du frontend
+frontend/TroupeauApp/node_modules/
+
+# Divers
+.DS_Store
+*.log
