@@ -12,7 +12,8 @@
       "Bash(taskkill /F /IM python.exe)",
       "Bash(cmd.exe /c \"taskkill /PID 22428 /F\")",
       "Bash(netstat -aon)",
-      "Bash(cmd.exe /c \"wmic process where processid=22428 get name,commandline 2>&1\")"
+      "Bash(cmd.exe /c \"wmic process where processid=22428 get name,commandline 2>&1\")",
+      "Bash(git config:*)"
     ]
   }
 }
