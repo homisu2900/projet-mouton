@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from database import get_connection
+from database import get_connection, get_cursor
 
 router = APIRouter()
 
@@ -21,10 +21,13 @@ class SoinIn(BaseModel):
 def soins_par_animal(animal_id: int):
     """Retourne tous les soins d'un animal, du plus récent au plus ancien."""
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM soins WHERE animal_id = ? ORDER BY date DESC",
+    cur = get_cursor(conn)
+    cur.execute(
+        "SELECT * FROM soins WHERE animal_id = %s ORDER BY date DESC",
         (animal_id,)
-    ).fetchall()
+    )
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
     return [dict(row) for row in rows]
 
@@ -33,18 +36,22 @@ def soins_par_animal(animal_id: int):
 def ajouter_soin(soin: SoinIn):
     """Ajoute un soin pour un animal et retourne le soin créé."""
     conn = get_connection()
+    cur = get_cursor(conn)
     # Vérifie que l'animal existe
-    animal = conn.execute("SELECT id FROM animaux WHERE id = ?", (soin.animal_id,)).fetchone()
+    cur.execute("SELECT id FROM animaux WHERE id = %s", (soin.animal_id,))
+    animal = cur.fetchone()
     if animal is None:
+        cur.close()
         conn.close()
         raise HTTPException(status_code=404, detail="Animal introuvable")
 
-    cursor = conn.execute(
-        "INSERT INTO soins (animal_id, type, date, notes) VALUES (?, ?, ?, ?)",
+    cur.execute(
+        "INSERT INTO soins (animal_id, type, date, notes) VALUES (%s, %s, %s, %s) RETURNING *",
         (soin.animal_id, soin.type, soin.date, soin.notes)
     )
+    row = cur.fetchone()
     conn.commit()
-    row = conn.execute("SELECT * FROM soins WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    cur.close()
     conn.close()
     return dict(row)
 
@@ -53,10 +60,14 @@ def ajouter_soin(soin: SoinIn):
 def supprimer_soin(soin_id: int):
     """Supprime un soin. Erreur 404 s'il n'existe pas."""
     conn = get_connection()
-    existing = conn.execute("SELECT id FROM soins WHERE id = ?", (soin_id,)).fetchone()
+    cur = get_cursor(conn)
+    cur.execute("SELECT id FROM soins WHERE id = %s", (soin_id,))
+    existing = cur.fetchone()
     if existing is None:
+        cur.close()
         conn.close()
         raise HTTPException(status_code=404, detail="Soin introuvable")
-    conn.execute("DELETE FROM soins WHERE id = ?", (soin_id,))
+    cur.execute("DELETE FROM soins WHERE id = %s", (soin_id,))
     conn.commit()
+    cur.close()
     conn.close()

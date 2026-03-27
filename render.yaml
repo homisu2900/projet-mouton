@@ -30,12 +30,11 @@ services:
       - key: PYTHON_VERSION
         value: "3.13.0"
 
-# ⚠️  Limite du tier gratuit — base de données SQLite éphémère :
-#
-# Le filesystem de Render (tier gratuit) est réinitialisé à chaque redémarrage
-# ou redéploiement. Le fichier troupeau.db sera donc perdu.
-#
-# Solutions possibles quand le projet sera plus avancé :
-#   - Render Persistent Disk (payant, ~1 $/mois pour 1 Go)
-#   - Migrer vers une base PostgreSQL (Render propose un tier gratuit limité)
-#   - Sauvegarder/restaurer la base manuellement via un script
+      # URL de connexion à la base de données PostgreSQL (Neon).
+      # À renseigner manuellement dans le dashboard Render :
+      #   Service → Environment → Add Environment Variable
+      #   Clé   : DATABASE_URL
+      #   Valeur: postgresql://utilisateur:motdepasse@hôte/nomdelabase
+      # (récupérer cette URL dans le dashboard Neon, onglet "Connection string")
+      - key: DATABASE_URL
+        sync: false

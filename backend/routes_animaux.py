@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from database import get_connection
+from database import get_connection, get_cursor
 
 router = APIRouter()
 
@@ -36,7 +36,10 @@ class AnimalIn(BaseModel):
 def liste_animaux():
     """Retourne la liste de tous les animaux du troupeau."""
     conn = get_connection()
-    rows = conn.execute("SELECT * FROM animaux").fetchall()
+    cur = get_cursor(conn)
+    cur.execute("SELECT * FROM animaux")
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
     return [dict(row) for row in rows]
 
@@ -45,7 +48,10 @@ def liste_animaux():
 def get_animal(animal_id: int):
     """Retourne la fiche d'un animal par son id. Erreur 404 s'il n'existe pas."""
     conn = get_connection()
-    row = conn.execute("SELECT * FROM animaux WHERE id = ?", (animal_id,)).fetchone()
+    cur = get_cursor(conn)
+    cur.execute("SELECT * FROM animaux WHERE id = %s", (animal_id,))
+    row = cur.fetchone()
+    cur.close()
     conn.close()
     if row is None:
         raise HTTPException(status_code=404, detail="Animal introuvable")
@@ -56,20 +62,22 @@ def get_animal(animal_id: int):
 def creer_animal(animal: AnimalIn):
     """Crée un nouvel animal et retourne sa fiche complète avec son id."""
     conn = get_connection()
-    cursor = conn.execute(
+    cur = get_cursor(conn)
+    cur.execute(
         """INSERT INTO animaux
            (nom, sexe, statut, date_naissance, boucle, genotype,
             mere, pere, prix_achat, prix_vente, acheteur, date_vente,
             signes, date_onglons, date_vaccin, poids_dernier)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           RETURNING *""",
         (animal.nom, animal.sexe, animal.statut, animal.date_naissance,
          animal.boucle, animal.genotype, animal.mere, animal.pere,
          animal.prix_achat, animal.prix_vente, animal.acheteur, animal.date_vente,
          animal.signes, animal.date_onglons, animal.date_vaccin, animal.poids_dernier)
     )
+    row = cur.fetchone()
     conn.commit()
-    new_id = cursor.lastrowid
-    row = conn.execute("SELECT * FROM animaux WHERE id = ?", (new_id,)).fetchone()
+    cur.close()
     conn.close()
     return dict(row)
 
@@ -81,9 +89,12 @@ def modifier_animal(animal_id: int, animal: AnimalIn):
     Seuls les champs fournis dans le corps de la requête sont mis à jour.
     """
     conn = get_connection()
+    cur = get_cursor(conn)
     # Vérifie que l'animal existe
-    existing = conn.execute("SELECT id FROM animaux WHERE id = ?", (animal_id,)).fetchone()
+    cur.execute("SELECT id FROM animaux WHERE id = %s", (animal_id,))
+    existing = cur.fetchone()
     if existing is None:
+        cur.close()
         conn.close()
         raise HTTPException(status_code=404, detail="Animal introuvable")
 
@@ -92,14 +103,16 @@ def modifier_animal(animal_id: int, animal: AnimalIn):
     # les autres restent inchangés en base.
     data = animal.model_dump(exclude_unset=True)
     if not data:
+        cur.close()
         conn.close()
         raise HTTPException(status_code=400, detail="Aucun champ à modifier")
-    champs = ", ".join(f"{k} = ?" for k in data)
+    champs = ", ".join(f"{k} = %s" for k in data)
     valeurs = list(data.values()) + [animal_id]
 
-    conn.execute(f"UPDATE animaux SET {champs} WHERE id = ?", valeurs)
+    cur.execute(f"UPDATE animaux SET {champs} WHERE id = %s RETURNING *", valeurs)
+    row = cur.fetchone()
     conn.commit()
-    row = conn.execute("SELECT * FROM animaux WHERE id = ?", (animal_id,)).fetchone()
+    cur.close()
     conn.close()
     return dict(row)
 
@@ -108,10 +121,14 @@ def modifier_animal(animal_id: int, animal: AnimalIn):
 def supprimer_animal(animal_id: int):
     """Supprime un animal. Erreur 404 s'il n'existe pas."""
     conn = get_connection()
-    existing = conn.execute("SELECT id FROM animaux WHERE id = ?", (animal_id,)).fetchone()
+    cur = get_cursor(conn)
+    cur.execute("SELECT id FROM animaux WHERE id = %s", (animal_id,))
+    existing = cur.fetchone()
     if existing is None:
+        cur.close()
         conn.close()
         raise HTTPException(status_code=404, detail="Animal introuvable")
-    conn.execute("DELETE FROM animaux WHERE id = ?", (animal_id,))
+    cur.execute("DELETE FROM animaux WHERE id = %s", (animal_id,))
     conn.commit()
+    cur.close()
     conn.close()
