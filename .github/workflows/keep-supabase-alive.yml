@@ -1,0 +1,28 @@
+name: Keep Supabase Alive
+
+# Ping hebdomadaire de la base Supabase pour eviter la mise en pause
+# automatique apres 7 jours d'inactivite (plan gratuit).
+
+on:
+  schedule:
+    # Tous les lundis a 9h00 UTC (= 10h00 ou 11h00 en France selon saison)
+    - cron: '0 9 * * 1'
+  # Permet aussi de lancer manuellement depuis l'onglet Actions de GitHub
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "Code HTTP recu : $response"
+          # 200 ou 401 = base reveillee. Tout autre code = probleme.
+          if [ "$response" != "200" ] && [ "$response" != "401" ]; then
+            echo "Erreur : la base n'a pas repondu correctement."
+            exit 1
+          fi
+          echo "Supabase a repondu. Base reveillee pour 7 jours."
