@@ -2,6 +2,8 @@ name: Keep Supabase Alive
 
 # Ping hebdomadaire de la base Supabase pour eviter la mise en pause
 # automatique apres 7 jours d'inactivite (plan gratuit).
+# Commit aussi un fichier de heartbeat pour eviter que GitHub
+# desactive le workflow programme apres 60 jours d'inactivite repo.
 
 on:
   schedule:
@@ -10,19 +12,39 @@ on:
   # Permet aussi de lancer manuellement depuis l'onglet Actions de GitHub
   workflow_dispatch:
 
+# Necessaire pour que le bot GitHub Actions puisse committer le heartbeat
+permissions:
+  contents: write
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Ping Supabase REST API
         run: |
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             "${{ secrets.SUPABASE_URL }}/rest/v1/" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}")
           echo "Code HTTP recu : $response"
-          # 200 ou 401 = base reveillee. Tout autre code = probleme.
           if [ "$response" != "200" ] && [ "$response" != "401" ]; then
             echo "Erreur : la base n'a pas repondu correctement."
             exit 1
           fi
           echo "Supabase a repondu. Base reveillee pour 7 jours."
+
+      - name: Update heartbeat file
+        run: |
+          date -u +"%Y-%m-%d %H:%M UTC" > last_ping.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add last_ping.txt
+          # Commit seulement si le fichier a vraiment change
+          if git diff --staged --quiet; then
+            echo "Aucun changement, rien a commiter."
+          else
+            git commit -m "chore: heartbeat $(date -u +%Y-%m-%d)"
+            git push
+          fi
